@@ -159,7 +159,7 @@ $xaml = @"
             
            <!-- Bottom Section with Terminal-like Output Area -->
             <Border Grid.Row="2" Background="#0d0935">
-                <ScrollViewer VerticalScrollBarVisibility="Visible">
+                <ScrollViewer Name="TerminalScroll" VerticalScrollBarVisibility="Visible">
                     <TextBox Name="TerminalOutput"
                             Background="#0d0935" 
                             Foreground="White" 
@@ -203,6 +203,7 @@ $window = [Windows.Markup.XamlReader]::Load($xmlReader)
 
 # Get the terminal TextBox
 $terminal = $window.FindName("TerminalOutput")
+$scrollViewer = $window.FindName("TerminalScroll")
 
 # Set initial terminal message
 $initialMessage = "<@BrickedDEV>: Bricked v1.0 initialized.`r`n"
@@ -212,7 +213,7 @@ $terminal.Text = $initialMessage
 $CheckDiskBtn = $window.FindName("CheckDiskBtn")
 $CheckDiskBtn.Add_Click({
         Show-AliveProgress -PercentComplete 100 -Message "Loading..." -MessageDone "Loaded..." -Symbol "█" -BarLength 35 -terminal $terminal -OnComplete {
-            Invoke-DiskCheck -terminal $terminal
+            Invoke-DiskCheck -terminal $terminal -scrollViewer $scrollViewer
             $terminal.Dispatcher.Invoke([Action] {
                     $terminal.AppendText("<@BrickedDEV>: Disk check starting...`r`n")
                     $terminal.ScrollToEnd()

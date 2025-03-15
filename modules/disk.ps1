@@ -1,10 +1,12 @@
 function Invoke-DiskCheck {
     param (
-        [System.Windows.Controls.TextBox]$terminal
+        [System.Windows.Controls.TextBox]$terminal,
+        [System.Windows.Controls.ScrollViewer]$scrollViewer
     )
 
     $syncHash = [hashtable]::Synchronized(@{})
     $syncHash.Terminal = $terminal
+    $syncHash.ScrollViewer = $scrollViewer
 
     # Create a new runspace for async execution
     $runspace = [runspacefactory]::CreateRunspace()
@@ -17,7 +19,7 @@ function Invoke-DiskCheck {
         if (-not $isAdmin) {
             $syncHash.Terminal.Dispatcher.Invoke([Action] {
                     $syncHash.Terminal.AppendText("<@BrickedDEV>: Please run the application as an administrator.`r`n")
-                    $syncHash.Terminal.ScrollToEnd()
+                    $syncHash.ScrollViewer.ScrollToEnd()
                 })
             return
         }
@@ -32,7 +34,7 @@ function Invoke-DiskCheck {
             
             $syncHash.Terminal.Dispatcher.Invoke([Action] {
                     $syncHash.Terminal.AppendText("<@BrickedDEV>: Running: ${CommandString}`r`n")
-                    $syncHash.Terminal.ScrollToEnd()
+                    $syncHash.ScrollViewer.ScrollToEnd()
                 })
         
             $logPath = "${env:TEMP}\cmd_output.log"
@@ -46,7 +48,7 @@ function Invoke-DiskCheck {
             if ($null -eq $process) {
                 $syncHash.Terminal.Dispatcher.Invoke([Action] {
                         $syncHash.Terminal.AppendText("<@BrickedDEV>: ERROR: Failed to start process for ${CommandString}`r`n")
-                        $syncHash.Terminal.ScrollToEnd()
+                        $syncHash.ScrollViewer.ScrollToEnd()
                     })
                 return "Failed"
             }
@@ -59,21 +61,21 @@ function Invoke-DiskCheck {
             if ($output) {
                 $syncHash.Terminal.Dispatcher.Invoke([Action] {
                         $syncHash.Terminal.AppendText("<@BrickedDEV>: ${output}`r`n")
-                        $syncHash.Terminal.ScrollToEnd()
+                        $syncHash.ScrollViewer.ScrollToEnd()
                     })
             }
 
             if ($errorOutput) {
                 $syncHash.Terminal.Dispatcher.Invoke([Action] {
                         $syncHash.Terminal.AppendText("<@BrickedDEV>: ERROR: ${errorOutput}`r`n")
-                        $syncHash.Terminal.ScrollToEnd()
+                        $syncHash.ScrollViewer.ScrollToEnd()
                     })
             }
         
             # Delete log files to release handles
             Remove-Item -Path $logPath, $errPath -ErrorAction SilentlyContinue
         
-            return if ($process.ExitCode -eq 0) { "Passed" } else { "Failed" }
+            return if ($null -eq $process.ExitCode -or $process.ExitCode -eq 0) { "Passed" } else { "Failed" }
         }        
 
         $osDrive = Get-OSDrive
@@ -87,6 +89,14 @@ function Invoke-DiskCheck {
             "<@BrickedDEV>: DISM Scan: ${dismScanStatus}"
         )
 
+$table = @"
+| Command       | Status                                           
+|---------------|--------------------------------------------------
+| CHKDSK        | ${chkDskStatus}
+| DISM Check    | ${dismCheckStatus}
+| DISM Scan     | ${dismScanStatus}
+"@
+
         $finalMessage = if ($chkDskStatus -eq "Failed" -or $dismCheckStatus -eq "Failed" -or $dismScanStatus -eq "Failed") {
             "<@BrickedDEV>: One or more checks failed. Please click the fix button."
         }
@@ -96,8 +106,8 @@ function Invoke-DiskCheck {
 
         $syncHash.Terminal.Dispatcher.Invoke([Action] {
                 $syncHash.Terminal.Clear()
-                $syncHash.Terminal.AppendText("${finalMessage}`r`n")
-                $syncHash.Terminal.ScrollToEnd()
+                $syncHash.Terminal.AppendText("${table}`r`n${finalMessage}`r`n")
+                $syncHash.ScrollViewer.ScrollToEnd()
             })
     }
 
